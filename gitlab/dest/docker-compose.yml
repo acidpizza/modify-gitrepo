@@ -1,0 +1,16 @@
+web:
+  image: 'gitlab/gitlab-ce:14.1.5-ce.0'
+  container_name: 'gitlab-new'
+  restart: always
+  hostname: 'localhost'
+  environment:
+    GITLAB_OMNIBUS_CONFIG: |
+      external_url 'https://localhost:8930'
+      gitlab_rails['gitlab_shell_ssh_port'] = 2225
+  ports:
+    - '8930:8930'
+    - '2225:22'
+  volumes:
+    - '$GITLAB_HOME/config:/etc/gitlab'
+    - '$GITLAB_HOME/logs:/var/log/gitlab'
+    - '$GITLAB_HOME/data:/var/opt/gitlab'

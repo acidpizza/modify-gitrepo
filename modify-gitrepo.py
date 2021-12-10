@@ -27,10 +27,10 @@ def callback_print_author_names(commit, metadata):
 
 
 def get_users(repo_path):
-  args = [
-    '--replace-refs',
-    '--update-no-add',
-  ]
+  args = git_filter_repo.FilteringOptions.default_options()
+  args.source = repo_path
+  args.replace_refs = '--update-no-add'
+
   filter = git_filter_repo.RepoFilter(args, commit_callback = callback_print_author_names)
   filter.run()
 

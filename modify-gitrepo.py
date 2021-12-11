@@ -2,6 +2,7 @@
 
 import getopt, sys
 from enum import Enum, auto
+import os
 import git_filter_repo
 
 '''
@@ -47,6 +48,7 @@ def callback_modify_repo(commit, metadata):
 class Action(Enum):
   GET_USERS = auto()
   MODIFY_REPO = auto()
+  ANALYZE_REPO = auto()
 
 '''
 git_filter_repo.FilteringOptions.default_options():
@@ -114,6 +116,18 @@ def modify_repo(repo_path):
   filter.run()
 
 
+def analyze_repo(repo_path, report_folder):
+  # Get absolute path of report folder as we will be changing directory
+  report_folder_abs = os.path.abspath(report_folder)
+  
+  # analyze repo only works on current directory
+  os.chdir(repo_path)
+
+  args = git_filter_repo.FilteringOptions.default_options()
+  args.report_dir = report_folder_abs.encode('utf-8')
+  git_filter_repo.RepoAnalyze.run(args)
+
+
 def print_help():
   print("This script assists in modifying commit history.\n"
   "\n"
@@ -121,12 +135,13 @@ def print_help():
   "-----\n"
   "Get all unique users in repo: modify-gitrepo.py -u -r <repo_path>\n"
   "Modify commit history       : modify-gitrepo.py -m -r <repo_path>\n"
+  "Analyze Repo                : modify-gitrepo.py -a <report_folder> -r <repo_path>\n"
   )
 
 
 def main():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "r:um")
+    opts, args = getopt.getopt(sys.argv[1:], "r:uma:")
   except getopt.GetoptError as err:
     print(err)
     print_help()
@@ -139,6 +154,7 @@ def main():
 
   # Set config from arguments
   repo_path = None
+  report_folder = None
   repo_action = None
   for key, value in opts:
     if key == "-r":
@@ -147,6 +163,9 @@ def main():
       repo_action = Action.GET_USERS
     elif key == "-m":
       repo_action = Action.MODIFY_REPO
+    elif key == "-a":
+      repo_action = Action.ANALYZE_REPO
+      report_folder = value
     else:
       print(f"Error: Unhandled option {key}")
       sys.exit(1)
@@ -162,6 +181,8 @@ def main():
     get_users(repo_path)
   elif repo_action == Action.MODIFY_REPO:
     modify_repo(repo_path)
+  elif repo_action == Action.ANALYZE_REPO:
+    analyze_repo(repo_path, report_folder)
 
 if __name__ == "__main__":
   main()

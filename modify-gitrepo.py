@@ -48,6 +48,50 @@ class Action(Enum):
   GET_USERS = auto()
   MODIFY_REPO = auto()
 
+'''
+git_filter_repo.FilteringOptions.default_options():
+analyze=False,
+blob_callback=None,
+commit_callback=None,
+debug=False,
+dry_run=False,
+email_callback=None,
+filename_callback=None,
+force=False,
+help=False,
+inclusive=False,
+mailmap=None,
+max_blob_size=0,
+message_callback=None,
+name_callback=None,
+no_ff=False,
+partial=False,
+path_changes=[],
+preserve_commit_encoding=False,
+preserve_commit_hashes=False,
+prune_degenerate='auto',
+prune_empty='auto',
+quiet=False,
+refname_callback=None,
+refs=['--all'],
+repack=True,
+replace_message=None,
+replace_refs=None,
+replace_text=None,
+report_dir=None,
+reset_callback=None,
+source=None,
+state_branch=None,
+stdin=False,
+strip_blobs_with_ids=set(),
+subdirectory_filter=None,
+tag_callback=None,
+tag_rename=None,
+target=None,
+to_subdirectory_filter=None,
+use_base_name=False,
+version=False
+'''
 
 def get_users(repo_path):
   args = git_filter_repo.FilteringOptions.default_options()
@@ -82,7 +126,7 @@ def print_help():
 
 def main():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "umr:")
+    opts, args = getopt.getopt(sys.argv[1:], "r:um")
   except getopt.GetoptError as err:
     print(err)
     print_help()

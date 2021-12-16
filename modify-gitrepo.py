@@ -162,7 +162,8 @@ def main():
   repo_path = None
   report_folder = None
   repo_action = None
-  global FORCE = False
+  global FORCE
+  FORCE = False
   for key, value in opts:
     if key == "-r":
       repo_path = value

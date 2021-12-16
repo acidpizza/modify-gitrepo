@@ -99,6 +99,7 @@ def get_users(repo_path):
   args = git_filter_repo.FilteringOptions.default_options()
   args.source = repo_path
   args.dry_run = True
+  args.force = True if FORCE else False
   filter = git_filter_repo.RepoFilter(args, commit_callback = callback_get_author_names)
   filter.run()
 
@@ -112,6 +113,7 @@ def modify_repo(repo_path):
   args.source = repo_path
   args.target = repo_path.encode('utf-8')
   args.replace_refs = '--update-no-add'
+  args.force = True if FORCE else False
   filter = git_filter_repo.RepoFilter(args, commit_callback = callback_modify_repo)
   filter.run()
 
@@ -125,6 +127,7 @@ def analyze_repo(repo_path, report_folder):
 
   args = git_filter_repo.FilteringOptions.default_options()
   args.report_dir = report_folder_abs.encode('utf-8')
+  args.force = True if FORCE else False
   git_filter_repo.RepoAnalyze.run(args)
 
 
@@ -136,12 +139,15 @@ def print_help():
   "Get all unique users in repo: modify-gitrepo.py -u -r <repo_path>\n"
   "Modify commit history       : modify-gitrepo.py -m -r <repo_path>\n"
   "Analyze Repo                : modify-gitrepo.py -a <report_folder> -r <repo_path>\n"
+  "-----\n"
+  "Global Options\n"
+  "-f : force\n"
   )
 
 
 def main():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "r:uma:")
+    opts, args = getopt.getopt(sys.argv[1:], "r:umaf:")
   except getopt.GetoptError as err:
     print(err)
     print_help()
@@ -156,6 +162,7 @@ def main():
   repo_path = None
   report_folder = None
   repo_action = None
+  FORCE = False
   for key, value in opts:
     if key == "-r":
       repo_path = value
@@ -166,6 +173,8 @@ def main():
     elif key == "-a":
       repo_action = Action.ANALYZE_REPO
       report_folder = value
+    elif key == "-f":
+      FORCE = True
     else:
       print(f"Error: Unhandled option {key}")
       sys.exit(1)

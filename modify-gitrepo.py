@@ -98,6 +98,7 @@ version=False
 def get_users(repo_path):
   args = git_filter_repo.FilteringOptions.default_options()
   args.source = repo_path
+  args.target = repo_path.encode('utf-8')
   args.dry_run = True
   args.force = True if FORCE else False
   filter = git_filter_repo.RepoFilter(args, commit_callback = callback_get_author_names)

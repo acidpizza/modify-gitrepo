@@ -5,7 +5,7 @@
 sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
 ```
 
-# Pure Python Implementatoin for Modfy Gitrepo
+# Pure Python Implementation for Modfy Gitrepo
 
 ```bash
 # Get dependencies

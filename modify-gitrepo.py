@@ -113,6 +113,7 @@ def modify_repo(repo_path):
   args.source = repo_path
   args.target = repo_path.encode('utf-8')
   args.replace_refs = '--update-no-add'
+  args.preserve_commit_hashes = True
   args.force = True if FORCE else False
   filter = git_filter_repo.RepoFilter(args, commit_callback = callback_modify_repo)
   filter.run()

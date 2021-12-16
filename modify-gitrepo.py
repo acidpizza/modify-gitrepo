@@ -147,7 +147,7 @@ def print_help():
 
 def main():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "r:umaf:")
+    opts, args = getopt.getopt(sys.argv[1:], "r:umaf")
   except getopt.GetoptError as err:
     print(err)
     print_help()

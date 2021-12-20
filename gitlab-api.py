@@ -27,15 +27,17 @@ GIT_BINARY = os.environ['GIT_BINARY']
 class Action(Enum):
   MIGRATE_GROUP = auto()
   MIGRATE_PROJECT = auto()
+  MIGRATE_GROUP_PROJECTS = auto()
 
 
-def migrate_group(source, dest_path = None, dest_name = None):
+def migrate_group(source, dest_path = None, dest_name = None, projects = False):
   '''
   Migrates a Gitlab group from source to dest.
 
   source: source group in format group_id or namespace.
   dest_path: [optional] dest path. Autodetected if not provided.
   dest_name: [optional] dest name. Autodetected if not provided.
+  projects: [optional] migrate projects within group. Default is False.
   '''
   # Export
   (detected_source_group_path, detected_source_group_name, group_data) = export_group(source)
@@ -59,8 +61,17 @@ def migrate_group(source, dest_path = None, dest_name = None):
   # Debugging -> save exported file to disk
   # open('file.tar.gz', 'wb').write(group_data)
 
-  # Import
+  # Import Group
   import_group(dest_path, dest_name, group_data)
+  print()
+
+  # Import Projects
+  if projects:
+    project_ids = get_projects_in_group(source)
+    for project_id in project_ids:
+      print('---------------------------------------------------------------------------')
+      migrate_project(project_id)
+
 
 
 def migrate_project(source, dest_path = None, dest_name = None):
@@ -102,11 +113,63 @@ def migrate_project(source, dest_path = None, dest_name = None):
   # Debugging -> save modified exported file to disk
   # open('file.tar.gz', 'wb').write(modified_project_data)
 
-  # Import
   import_project(dest_path, dest_name, modified_project_data)
-
+  print()
+  
 
 # ---------------------------------------------------------------------------
+
+def get_projects_in_group(source):
+  '''
+  Gets all projects IDs in the group.
+
+  source: source group in format project_id or namespace.
+  returns: list of project ids
+  '''  
+  print(f'Listing projects from: {source}.')
+  source_url_safe = urllib.parse.quote_plus(source)
+
+  project_list = []
+  current_page=1
+  more_pages=True
+
+  headers = {
+    'PRIVATE-TOKEN': f'{SRC_TOKEN}'
+  }
+
+  while more_pages:
+    params = {
+      "page": current_page,
+      "per_page": 100,
+    }
+    response = requests.get(
+      url = f'{SRC_GITLAB_URL}/api/v4/groups/{source_url_safe}/projects',
+      headers = headers,
+      params = params,
+      verify = TLS_VERIFY,
+      timeout = 600,    
+    )
+    response.raise_for_status()
+    current_page_of_project_list = response.json()
+    total_pages = response.headers["x-total-pages"]
+    total_projects = response.headers["x-total"]
+
+    for project in current_page_of_project_list:
+      project_list.append(str(project["id"]))
+
+    if int(current_page) >= int(total_pages):
+      more_pages = False
+      if len(project_list) != int(total_projects):
+        print(f'- Detected project count {len(project_list)} != advertised project count {total_projects}.')
+        sys.exit(1)
+      else:
+        print(f'- {total_projects} projects detected: {project_list}')
+    else:
+      print(f'- Processing page {current_page} of {total_pages}')
+      current_page = current_page + 1
+
+  return project_list
+
 
 def export_group(source):
   '''
@@ -390,12 +453,13 @@ def print_help():
   "\n"
   "Usage\n"
   "-------------\n"
-  "python3 gitlab-api.py <-g|-p> <-s source> [--dest-path dest_path] [--dest-name dest_name]\n"
+  "python3 gitlab-api.py <-g|-p> <-s source> [-a] [--dest-path dest_path] [--dest-name dest_name]\n"
   "\n"
   "Options\n"
   "-------------\n"
   "-g: migrate group.\n"
   "-p: migrate project.\n"
+  "-a: migrate all projects in group.\n"
   "-s: source - id or full path of group or project (eg. 113 or my-namespace/my-project).\n"
   "--dest-path: full path of destination group or project (eg. my-namespace/my-project). Autodetected if not provided.\n"
   "--dest-name: name of destination group or project (eg. 'My Project'). Autodetected if not provided."
@@ -408,7 +472,7 @@ def print_help():
 
 def main():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "gps:", ["dest-path=","dest-name="])
+    opts, args = getopt.getopt(sys.argv[1:], "gpas:", ["dest-path=","dest-name="])
   except getopt.GetoptError as err:
     print(err)
     print_help()
@@ -429,6 +493,8 @@ def main():
       migrate_action = Action.MIGRATE_GROUP
     elif key == "-p":
       migrate_action = Action.MIGRATE_PROJECT
+    elif key == "-a":
+      migrate_action = Action.MIGRATE_GROUP_PROJECTS
     elif key == "-s":
       source = value
     elif key == "--dest-path":
@@ -450,7 +516,8 @@ def main():
     migrate_group(source, dest_path, dest_name)
   elif migrate_action == Action.MIGRATE_PROJECT:
     migrate_project(source, dest_path, dest_name)
-
+  elif migrate_action == Action.MIGRATE_GROUP_PROJECTS:
+    migrate_group(source, dest_path, dest_name, projects=True)
 
 if __name__ == "__main__":
   main()

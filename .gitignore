@@ -1,3 +1,4 @@
 gitlab_home
 logs.txt
 venv
+__pycache__

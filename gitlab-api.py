@@ -29,20 +29,67 @@ class Action(Enum):
   MIGRATE_PROJECT = auto()
 
 
-def migrate_group(source, dest):
-  pass
+def migrate_group(source, dest_path = None, dest_name = None):
+  '''
+  Migrates a Gitlab group from source to dest.
 
-def migrate_project(source, dest):
+  source: source group in format group_id or namespace.
+  dest_path: [optional] dest path. Autodetected if not provided.
+  dest_name: [optional] dest name. Autodetected if not provided.
+  '''
   # Export
-  (detected_source_project_path, project_data) = export_project(source)
+  (detected_source_group_path, detected_source_group_name, group_data) = export_group(source)
+  print()
+  
+  # Determine import location
+  if dest_path != None:
+    print(f'Importing group to specified path at: {dest_path}')
+  else:
+    dest_path = detected_source_group_path
+    print(f'Importing group to detected path at: {dest_path}')
+
+  if dest_name != None:
+    print(f'Importing group with specified name: {dest_name}')
+  else:
+    dest_name = detected_source_group_name
+    print(f'Importing group with detected name: {dest_name}')
+  
+  print()
+
+  # Debugging -> save exported file to disk
+  # open('file.tar.gz', 'wb').write(group_data)
+
+  # Import
+  import_group(dest_path, dest_name, group_data)
+
+
+def migrate_project(source, dest_path = None, dest_name = None):
+  '''
+  Migrates a Gitlab project from source to dest.
+  If dest is not provided, it will be derived from source.
+
+  source: source project in format project_id or namespace/project.
+  dest_path: [optional] dest path. Autodetected if not provided.
+  dest_name: [optional] dest name. Autodetected if not provided.
+  '''
+
+  # Export
+  (detected_source_project_path, detected_source_project_name, project_data) = export_project(source)
   print()
 
   # Determine import location
-  if dest != None:
-    print(f'Importing project to specified location at: {dest}')
+  if dest_path != None:
+    print(f'Importing project to specified path at: {dest_path}')
   else:
-    dest = detected_source_project_path
-    print(f'Importing project to detected location at: {dest}')
+    dest_path = detected_source_project_path
+    print(f'Importing project to detected path at: {dest_path}')
+
+  if dest_name != None:
+    print(f'Importing project with specified name: {dest_name}')
+  else:
+    dest_name = detected_source_project_name
+    print(f'Importing project with detected name: {dest_name}')
+
   print()
 
   # Debugging -> save exported file to disk
@@ -56,7 +103,124 @@ def migrate_project(source, dest):
   # open('file.tar.gz', 'wb').write(modified_project_data)
 
   # Import
-  import_project(dest, modified_project_data)
+  import_project(dest_path, dest_name, modified_project_data)
+
+
+# ---------------------------------------------------------------------------
+
+def export_group(source):
+  '''
+  Detects the source group namespace and exports the group data.
+
+  source: source group in format project_id or namespace.
+  returns: (detected_source_group_path, detected_source_group_name, group_data)
+  '''
+  print(f'Exporting group from: {source}.')
+  source_url_safe = urllib.parse.quote_plus(source)
+
+  # Detect the source group namespace
+  headers = {
+    'PRIVATE-TOKEN': f'{SRC_TOKEN}'
+  }
+  response = requests.get(
+    url = f'{SRC_GITLAB_URL}/api/v4/groups/{source_url_safe}',
+    headers = headers,
+    verify = TLS_VERIFY,
+    timeout = 600,    
+  )
+  response.raise_for_status()
+  detected_source_group_path = response.json()['full_path']
+  detected_source_group_name = response.json()['name']
+  print(f'- Detected path is: {detected_source_group_path}, detected name is: {detected_source_group_name}.')
+
+  # Initiate export
+  print(f'- Initiating export for group {source}...')
+  response = requests.post(
+    url = f'{SRC_GITLAB_URL}/api/v4/groups/{source_url_safe}/export',
+    headers = headers,
+    verify = TLS_VERIFY,
+    timeout = 600,
+  )
+  response.raise_for_status()
+
+  # Wait until group has been exported
+  print(f'- Waiting for group {source} to be exported...')
+  exported = False
+  while not exported:
+    try:
+      response = requests.get(
+        url = f'{SRC_GITLAB_URL}/api/v4/groups/{source_url_safe}/export/download',
+        headers = headers,
+        verify = TLS_VERIFY,
+        timeout = 600,
+      )
+      response.raise_for_status()
+      
+      print(f'  - Group {source} export status is ready and downloaded.')
+      group_data = response.content
+      exported = True
+
+    except Exception as e:
+      print(f'  - Group {source} export status is not ready (404 not found is expected): {e}')
+      time.sleep(1)
+
+  print('- Successfully exported group.')
+
+  return (detected_source_group_path, detected_source_group_name, group_data)
+
+
+def import_group(dest_path, dest_name, group_data):
+  '''
+  dest_path: path of group
+  dest_name: name of group
+  group_data: the contents of the exported group.
+  '''
+  print(f'Importing group to path={dest_path}, name={dest_name}.')
+
+  headers = {
+    'PRIVATE-TOKEN': f'{DST_TOKEN}'
+  }
+  files = {
+    'file': ('file.tar.gz', BytesIO(group_data))
+  }
+  data = {
+    "path": dest_path,
+    "name": dest_name,
+  }
+
+  # Check if dest group is a sub-group
+  if len(dest_path.split("/")) > 1:
+    detected_dest_parent_path = dest_path.rsplit("/", 1)[0]
+    detected_dest_child_path = dest_path.rsplit("/", 1)[1]
+    print(f'- Detected parent group path = {detected_dest_parent_path}, child group path = {detected_dest_child_path}.')
+
+    # Detect the dest parent id
+    detected_dest_parent_path_url_safe = urllib.parse.quote_plus(detected_dest_parent_path)
+    response = requests.get(
+      url = f'{DST_GITLAB_URL}/api/v4/groups/{detected_dest_parent_path_url_safe}',
+      headers = headers,
+      verify = TLS_VERIFY,
+      timeout = 600,    
+    )
+    response.raise_for_status()
+    detected_dest_parent_id = response.json()['id']
+    
+    # Amend path and parent_id
+    data["path"] = detected_dest_child_path
+    data["parent_id"] = detected_dest_parent_id
+    print(f'- Detected parent_id: {detected_dest_parent_id}.')
+    
+  response = requests.post(
+    url = f'{DST_GITLAB_URL}/api/v4/groups/import',
+    headers = headers,
+    data = data,
+    files = files,
+    verify = TLS_VERIFY,
+    timeout = 600,
+  )
+  response.raise_for_status()
+
+  print('- Successfully imported group.')
 
 
 def modify_repo(project_data):
@@ -116,7 +280,7 @@ def export_project(source):
   Detects the source project path and exports the project data.
 
   source: source project in format project_id or namespace/project.
-  returns: (detected_source_project_path, project_data)
+  returns: (detected_source_project_path, detected_source_project_name, project_data)
   '''
   print(f'Exporting project from: {source}.')
   source_url_safe = urllib.parse.quote_plus(source)
@@ -133,9 +297,11 @@ def export_project(source):
   )
   response.raise_for_status()
   detected_source_project_path = response.json()['path_with_namespace']
-  print(f'- Detected path is: {detected_source_project_path}')
+  detected_source_project_name = response.json()['name']
+  print(f'- Detected path is: {detected_source_project_path}, detected name is: {detected_source_project_name}.')
 
   # Initiate export
+  print(f'- Initiating export for project {source}...')
   response = requests.post(
     url = f'{SRC_GITLAB_URL}/api/v4/projects/{source_url_safe}/export',
     headers = headers,
@@ -175,23 +341,25 @@ def export_project(source):
 
   print('- Successfully exported project.')
 
-  return (detected_source_project_path, project_data)
+  return (detected_source_project_path, detected_source_project_name, project_data)
 
 
-def import_project(dest, project_data):
+def import_project(dest_path, dest_name, project_data):
   '''
-  dest: dest project in format namespace/project.
+  dest_path: full path of project
+  dest_name: name of project
   project_data: the contents of the exported project
   '''
-  print(f'Importing project to {dest}.')
-  # Split import location into namespace and path
-  if len(dest.rsplit("/", 1)) != 2:
-    print(f'- Unable to split {dest} into namespace and path with delimiter = /.')
+  print(f'Importing project to path={dest_path}, name={dest_name}.')
+  
+  # Extract namespace
+  if len(dest_path.rsplit("/", 1)) != 2:
+    print(f'- Unable to split {dest_path} with delimiter = /.')
     sys.exit(1)
 
-  dest_namespace = dest.rsplit("/", 1)[0]
-  dest_path = dest.rsplit("/", 1)[1]
-  print(f'- Importing to namespace={dest_namespace}, path={dest_path}.')
+  dest_namespace = dest_path.rsplit("/", 1)[0]
+  dest_path = dest_path.rsplit("/", 1)[1]
+  print(f'- Extracted namespace={dest_namespace}, path={dest_path}.')
 
   headers = {
     'PRIVATE-TOKEN': f'{DST_TOKEN}'
@@ -200,8 +368,8 @@ def import_project(dest, project_data):
     'file': ('file.tar.gz', BytesIO(project_data))
   }
   data = {
-    # 'path': f'{dest}',
     "namespace": dest_namespace,
+    "name": dest_name,
     "path": dest_path,
   }
   response = requests.post(
@@ -222,23 +390,25 @@ def print_help():
   "\n"
   "Usage\n"
   "-------------\n"
-  "python3 gitlab-api.py <-g|-p> <-s source> [-d dest]\n"
+  "python3 gitlab-api.py <-g|-p> <-s source> [--dest-path dest_path] [--dest-name dest_name]\n"
   "\n"
   "Options\n"
   "-------------\n"
-  "-g: migrate group\n"
-  "  -s: source group in form of either group_id or group/subgroup\n"
-  "  -d: dest group in form of either group_id or group/subgroup. Takes source path if not provided.\n"
-  "-p: migrate project\n"
-  "  -s: source project in form of either project_id or namespace/project\n"
-  "  -d: dest project in form of namespace/project. Takes source path if not provided.\n"  
+  "-g: migrate group.\n"
+  "-p: migrate project.\n"
+  "-s: source - id or full path of group or project (eg. 113 or my-namespace/my-project).\n"
+  "--dest-path: full path of destination group or project (eg. my-namespace/my-project). Autodetected if not provided.\n"
+  "--dest-name: name of destination group or project (eg. 'My Project'). Autodetected if not provided."
   "\n"
   )
 
 
+# ---------------------------------------------------------------------------
+
+
 def main():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "s:d:gp")
+    opts, args = getopt.getopt(sys.argv[1:], "gps:", ["dest-path=","dest-name="])
   except getopt.GetoptError as err:
     print(err)
     print_help()
@@ -250,33 +420,36 @@ def main():
     sys.exit(1)
 
   # Set config from arguments
-  source = None
-  dest = None
   migrate_action = None
+  source = None
+  dest_path = None
+  dest_name = None
   for key, value in opts:
-    if key == "-s":
-      source = value
-    elif key == "-d":
-      dest = value
-    elif key == "-g":
+    if key == "-g":
       migrate_action = Action.MIGRATE_GROUP
     elif key == "-p":
       migrate_action = Action.MIGRATE_PROJECT
+    elif key == "-s":
+      source = value
+    elif key == "--dest-path":
+      dest_path = value
+    elif key == "--dest-name":
+      dest_name = value
     else:
       print(f"Error: Unhandled option {key}")
       sys.exit(1)
     
   # Check that necessary config are set
-  if not source or not migrate_action:
+  if not migrate_action or not source:
     print("Error: Some values were not set.")
     print_help()
     sys.exit(1)
 
   # Perform repo action
   if migrate_action == Action.MIGRATE_GROUP:
-    migrate_group(source, dest)
+    migrate_group(source, dest_path, dest_name)
   elif migrate_action == Action.MIGRATE_PROJECT:
-    migrate_project(source, dest)
+    migrate_project(source, dest_path, dest_name)
 
 
 if __name__ == "__main__":

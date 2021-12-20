@@ -56,3 +56,52 @@ python3 modify-gitrepo.py
 # Exit venv
 deactivate
 ```
+
+
+# Exported Contents
+
+## Group Exports
+
+https://docs.gitlab.com/ee/api/group_import_export.html
+
+```
+Group exports include the following:
+
+Group milestones
+Group boards
+Group labels
+Group badges
+Group members
+Subgroups. Each subgroup includes all data above
+Group wikis
+```
+
+## Project Exports 
+
+https://docs.gitlab.com/ee/user/project/settings/import_export.html#exported-contents
+
+```
+The following items are exported:
+
+Project and wiki repositories
+Project uploads
+Project configuration, excluding integrations
+Issues with comments, merge requests with diffs and comments, labels, milestones, snippets, time tracking, and other project entities
+Design Management files and data
+LFS objects
+Issue boards
+Pipelines history
+Push Rules
+Awards
+
+The following items are not exported:
+
+Build traces and artifacts
+Container registry images
+CI/CD variables
+Pipeline triggers
+Webhooks
+Any encrypted tokens
+Merge Request Approvers
+Repository size limits
+```

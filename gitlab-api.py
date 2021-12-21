@@ -577,6 +577,10 @@ def main():
   elif migrate_action == Action.MIGRATE_PROJECT:
     migrate_project(source, dest_path, dest_name)
   elif migrate_action == Action.MIGRATE_GROUP_PROJECTS:
+    if dest_path != None:
+      print(f"Migrating projects is not supported when group dest_path={dest_path} is different from source={source}.")
+      print(f"Move group in source gitlab to desired location first, then perform group migration with projects again.")
+      sys.exit(1)
     migrate_group(source, dest_path, dest_name, projects=True)
 
 if __name__ == "__main__":

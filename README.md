@@ -28,7 +28,7 @@ source /opt/rh/rh-git227/enable
 # Execute to set environment variables
 source set-env.sh
 
-# Run
+# Run (MUST run from project root folder due to dependency with modify-gitrepo.py via relative path)
 python3 gitlab-api.py
 
 # Exit venv

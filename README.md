@@ -105,3 +105,12 @@ Any encrypted tokens
 Merge Request Approvers
 Repository size limits
 ```
+
+
+# Notes
+
+## Group / Project Visibility
+
+Groups and projects are imported as private by default. If imported into a parent group, the group / project will inherit the parent group's visibility level.
+
+https://docs.gitlab.com/ee/user/group/settings/import_export.html#important-notes

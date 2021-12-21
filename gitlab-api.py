@@ -115,6 +115,8 @@ def migrate_project(source, dest_path = None, dest_name = None):
 
   import_project(dest_path, dest_name, modified_project_data)
   print()
+
+  migrate_ci_variables(source, dest_path)
   
 
 # ---------------------------------------------------------------------------
@@ -446,6 +448,43 @@ def import_project(dest_path, dest_name, project_data):
   response.raise_for_status()
 
   print('- Successfully imported project.')
+
+
+def migrate_ci_variables(source, dest_path):
+  # Export project variables
+  print(f'Exporting CI variables from: {source}.')
+  source_url_safe = urllib.parse.quote_plus(source)
+
+  headers = {
+    'PRIVATE-TOKEN': f'{SRC_TOKEN}'
+  }
+  response = requests.get(
+    url = f'{SRC_GITLAB_URL}/api/v4/projects/{source_url_safe}/variables',
+    headers = headers,
+    verify = TLS_VERIFY,
+    timeout = 600,
+  )
+  response.raise_for_status()
+  ci_variables = response.json()
+
+  # Import project variables
+  print(f'Importing CI variables to: {dest_path}.')
+  dest_url_safe = urllib.parse.quote_plus(dest_path)
+
+  headers = {
+    'PRIVATE-TOKEN': f'{DST_TOKEN}'
+  }
+
+  for data in ci_variables:
+    print(f'- Importing CI Variable: {data["key"]}')
+    response = requests.post(
+      url = f'{DST_GITLAB_URL}/api/v4/projects/{dest_url_safe}/variables',
+      headers = headers,
+      data = data,
+      verify = TLS_VERIFY,
+      timeout = 600,
+    )
+    response.raise_for_status()
 
 
 def print_help():

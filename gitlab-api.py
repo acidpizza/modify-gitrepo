@@ -123,7 +123,7 @@ def migrate_project(source, dest_path = None, dest_name = None):
 
 def get_projects_in_group(source):
   '''
-  Gets all projects IDs in the group.
+  Gets all projects IDs in the group: https://docs.gitlab.com/ee/api/groups.html#list-a-groups-projects
 
   source: source group in format project_id or namespace (full path).
   returns: list of project ids
@@ -152,6 +152,8 @@ def get_projects_in_group(source):
       timeout = 600,    
     )
     response.raise_for_status()
+
+    # Handle pagination: https://docs.gitlab.com/ee/api/index.html#pagination
     current_page_of_project_list = response.json()
     total_pages = response.headers["x-total-pages"]
     total_projects = response.headers["x-total"]
@@ -175,7 +177,8 @@ def get_projects_in_group(source):
 
 def export_group(source):
   '''
-  Detects the source group namespace and exports the group data.
+  Detects the source group namespace and exports the group data: 
+  https://docs.gitlab.com/ee/api/group_import_export.html#schedule-new-export
 
   source: source group in format project_id or namespace (full path).
   returns: (detected_source_group_path, detected_source_group_name, group_data)
@@ -236,6 +239,9 @@ def export_group(source):
 
 def import_group(dest_path, dest_name, group_data):
   '''
+  Imports group data to a dest path and name:
+  https://docs.gitlab.com/ee/api/group_import_export.html#import-a-file
+
   dest_path: full path of group
   dest_name: name of group
   group_data: the contents of the exported group.
@@ -289,6 +295,10 @@ def import_group(dest_path, dest_name, group_data):
 
 
 def modify_repo(project_data):
+  '''
+  Modify a git repo from Gitlab project export bundle using git-filter-repo.
+  '''
+
   print('Modifying repo')
   with tempfile.TemporaryDirectory() as tmpdirname:
     print('- Created temporary directory', tmpdirname)
@@ -342,7 +352,8 @@ def modify_repo(project_data):
 
 def export_project(source):
   '''
-  Detects the source project path and exports the project data.
+  Detects the source project path and exports the project data:
+  https://docs.gitlab.com/ee/api/project_import_export.html#schedule-an-export
 
   source: source project in format project_id or namespace/project (full path).
   returns: (detected_source_project_path, detected_source_project_name, project_data)
@@ -411,6 +422,9 @@ def export_project(source):
 
 def import_project(dest_path, dest_name, project_data):
   '''
+  Imports project data into a dest_path and dest_name: 
+  https://docs.gitlab.com/ee/api/project_import_export.html#import-a-file
+
   dest_path: full path of project = namespace/project_path
   dest_name: name of project
   project_data: the contents of the exported project
@@ -452,6 +466,8 @@ def import_project(dest_path, dest_name, project_data):
 
 def migrate_ci_variables(source, dest_path):
   '''
+  Migrate project CI variables: https://docs.gitlab.com/ee/api/project_level_variables.html#list-project-variables
+
   source: source project in format project_id or namespace/project (full path).
   dest_path: full path of project = namespace/project_path
   '''

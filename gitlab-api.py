@@ -34,8 +34,8 @@ def migrate_group(source, dest_path = None, dest_name = None, projects = False):
   '''
   Migrates a Gitlab group from source to dest.
 
-  source: source group in format group_id or namespace.
-  dest_path: [optional] dest path. Autodetected if not provided.
+  source: source group in format group_id or namespace (full path).
+  dest_path: [optional] dest full path. Autodetected if not provided.
   dest_name: [optional] dest name. Autodetected if not provided.
   projects: [optional] migrate projects within group. Default is False.
   '''
@@ -79,8 +79,8 @@ def migrate_project(source, dest_path = None, dest_name = None):
   Migrates a Gitlab project from source to dest.
   If dest is not provided, it will be derived from source.
 
-  source: source project in format project_id or namespace/project.
-  dest_path: [optional] dest path. Autodetected if not provided.
+  source: source project in format project_id or namespace/project (full path).
+  dest_path: [optional] dest full path. Autodetected if not provided.
   dest_name: [optional] dest name. Autodetected if not provided.
   '''
 
@@ -125,7 +125,7 @@ def get_projects_in_group(source):
   '''
   Gets all projects IDs in the group.
 
-  source: source group in format project_id or namespace.
+  source: source group in format project_id or namespace (full path).
   returns: list of project ids
   '''  
   print(f'Listing projects from: {source}.')
@@ -177,7 +177,7 @@ def export_group(source):
   '''
   Detects the source group namespace and exports the group data.
 
-  source: source group in format project_id or namespace.
+  source: source group in format project_id or namespace (full path).
   returns: (detected_source_group_path, detected_source_group_name, group_data)
   '''
   print(f'Exporting group from: {source}.')
@@ -236,7 +236,7 @@ def export_group(source):
 
 def import_group(dest_path, dest_name, group_data):
   '''
-  dest_path: path of group
+  dest_path: full path of group
   dest_name: name of group
   group_data: the contents of the exported group.
   '''
@@ -344,7 +344,7 @@ def export_project(source):
   '''
   Detects the source project path and exports the project data.
 
-  source: source project in format project_id or namespace/project.
+  source: source project in format project_id or namespace/project (full path).
   returns: (detected_source_project_path, detected_source_project_name, project_data)
   '''
   print(f'Exporting project from: {source}.')
@@ -411,7 +411,7 @@ def export_project(source):
 
 def import_project(dest_path, dest_name, project_data):
   '''
-  dest_path: full path of project
+  dest_path: full path of project = namespace/project_path
   dest_name: name of project
   project_data: the contents of the exported project
   '''
@@ -423,8 +423,8 @@ def import_project(dest_path, dest_name, project_data):
     sys.exit(1)
 
   dest_namespace = dest_path.rsplit("/", 1)[0]
-  dest_path = dest_path.rsplit("/", 1)[1]
-  print(f'- Extracted namespace={dest_namespace}, path={dest_path}.')
+  dest_project_path = dest_path.rsplit("/", 1)[1]
+  print(f'- Extracted namespace={dest_namespace}, project path={dest_project_path}.')
 
   headers = {
     'PRIVATE-TOKEN': f'{DST_TOKEN}'
@@ -435,7 +435,7 @@ def import_project(dest_path, dest_name, project_data):
   data = {
     "namespace": dest_namespace,
     "name": dest_name,
-    "path": dest_path,
+    "path": dest_project_path,
   }
   response = requests.post(
     url = f'{DST_GITLAB_URL}/api/v4/projects/import',
@@ -451,6 +451,11 @@ def import_project(dest_path, dest_name, project_data):
 
 
 def migrate_ci_variables(source, dest_path):
+  '''
+  source: source project in format project_id or namespace/project (full path).
+  dest_path: full path of project = namespace/project_path
+  '''
+
   # Export project variables
   print(f'Exporting CI variables from: {source}.')
   source_url_safe = urllib.parse.quote_plus(source)

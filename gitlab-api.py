@@ -143,6 +143,7 @@ def get_projects_in_group(source):
     params = {
       "page": current_page,
       "per_page": 100,
+      "include_subgroups": True,
     }
     response = requests.get(
       url = f'{SRC_GITLAB_URL}/api/v4/groups/{source_url_safe}/projects',

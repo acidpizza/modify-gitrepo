@@ -318,8 +318,12 @@ def modify_repo(project_data):
 
     print('------------------------------------------')
     # git clone project.bundle
-    print('- git clone project.bundle')
-    subprocess.check_output([ f"{GIT_BINARY}", "-C", tmpdirname, "clone", "project.bundle" ])
+    if os.path.exists(f"{tmpdirname}/project.bundle"):
+      print('- git clone project.bundle')
+      subprocess.check_output([ f"{GIT_BINARY}", "-C", tmpdirname, "clone", "project.bundle" ])
+    else:
+      print('- Not modifying repo because no git repo found!')
+      return project_data
 
     print('------------------------------------------')
     # python3 modify-repo -m -r project/
